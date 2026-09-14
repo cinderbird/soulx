@@ -2,9 +2,17 @@ import * as THREE from 'three';
 import { GroundTruthTracker } from './aim/groundTruth';
 import { AimSurface, Reticle } from './scene/reticle';
 import { MockRecognizer, NO_FAILURES } from './sim/recognizer';
+import { SignalMetrics } from './metrics/signalMetrics';
 
 const container = document.getElementById('stage');
 if (!container) throw new Error('#stage 컨테이너를 찾지 못했습니다');
+
+function requireElement(id: string): HTMLElement {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`#${id}을(를) 찾지 못했습니다`);
+  return el;
+}
+const readout = requireElement('hud-readout');
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0d12);
@@ -27,8 +35,8 @@ const reticle = new Reticle();
 scene.add(reticle.group);
 
 const groundTruth = new GroundTruthTracker(window);
-// 떨림만 켜 둔다. 처리 단계 없이 인식 결과를 그대로 그리면 무엇이 문제인지 바로 보인다.
 const recognizer = new MockRecognizer({ ...NO_FAILURES, jitterSigma: 0.012 });
+const metrics = new SignalMetrics();
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -36,7 +44,10 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-/** 인식 결과를 아직 아무것도 거치지 않고 그린다. 조준점이 눈에 띄게 떨린다. */
+/**
+ * 실제 위치와 화면에 그린 위치를 함께 측정기에 넣는다.
+ * 이후 추가할 처리 단계가 오차를 실제로 줄이는지 숫자로 확인하기 위한 기준선이다.
+ */
 function loop(now: number): void {
   const g = groundTruth.sample(now);
   const frame = recognizer.observe(g, now);
@@ -47,6 +58,16 @@ function loop(now: number): void {
     const world = aimSurface.project(observed.x, observed.y, camera);
     if (world) reticle.setPosition(world);
   }
+
+  if (g && observed) {
+    metrics.sample(now, g.x, g.y, observed.x, observed.y);
+    const s = metrics.summary();
+    readout.textContent =
+      `평균 오차   ${s.rmse.toFixed(4)}\n` +
+      `멈췄을 때 떨림  ${s.stationaryJitter.toFixed(4)}\n` +
+      `측정        ${s.sampleCount}프레임`;
+  }
+
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
