@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GroundTruthTracker } from './aim/groundTruth';
 import { AimSurface, Reticle } from './scene/reticle';
+import { MockRecognizer, NO_FAILURES } from './sim/recognizer';
 
 const container = document.getElementById('stage');
 if (!container) throw new Error('#stage 컨테이너를 찾지 못했습니다');
@@ -26,6 +27,8 @@ const reticle = new Reticle();
 scene.add(reticle.group);
 
 const groundTruth = new GroundTruthTracker(window);
+// 떨림만 켜 둔다. 처리 단계 없이 인식 결과를 그대로 그리면 무엇이 문제인지 바로 보인다.
+const recognizer = new MockRecognizer({ ...NO_FAILURES, jitterSigma: 0.012 });
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -33,12 +36,15 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-/** 아직 처리 단계가 없다. 마우스 위치를 그대로 조준점에 연결해 기준선으로 삼는다. */
+/** 인식 결과를 아직 아무것도 거치지 않고 그린다. 조준점이 눈에 띄게 떨린다. */
 function loop(now: number): void {
   const g = groundTruth.sample(now);
-  reticle.setVisible(g !== null);
-  if (g) {
-    const world = aimSurface.project(g.x, g.y, camera);
+  const frame = recognizer.observe(g, now);
+  const observed = frame?.observations[0] ?? null;
+
+  reticle.setVisible(observed !== null);
+  if (observed) {
+    const world = aimSurface.project(observed.x, observed.y, camera);
     if (world) reticle.setPosition(world);
   }
   renderer.render(scene, camera);
