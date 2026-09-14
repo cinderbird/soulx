@@ -1,0 +1,24 @@
+{
+  "name": "soulx-aim-reticle",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "불안정한 인식 입력 위에서 조준(pointing) 인터랙션을 만드는 파이프라인 (소울엑스 사전 과제 B)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "typescript": "^5.7.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.0"
+  }
+}
